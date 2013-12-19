@@ -86,6 +86,7 @@ const struct fw3_option fw3_zone_opts[] = {
 
 	FW3_OPT("log",                 int,      zone,     log),
 	FW3_OPT("log_limit",           limit,    zone,     log_limit),
+	FW3_OPT("log_prefix",          string,   zone,     log_prefix),
 
 	FW3_OPT("auto_helper",         bool,     zone,     auto_helper),
 	FW3_LIST("helper",             cthelper, zone,     cthelpers),
@@ -542,7 +543,11 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 				fw3_ipt_rule_limit(r, &zone->log_limit);
 				fw3_ipt_rule_comment(r, "Zone %s MTU fix logging", zone->name);
 				fw3_ipt_rule_target(r, "LOG");
-				fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+				if (zone->log_prefix) {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+				} else {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+				}
 				fw3_ipt_rule_replace(r, "FORWARD");
 			}
 
@@ -662,6 +667,49 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 		                     fw3_flag_names[zone->policy_output]);
 		fw3_ipt_rule_append(r, "zone_%s_output", zone->name);
 
+		if (zone->log)
+		{
+			enum fw3_flag t;
+			char buf[32];
+			for (t = FW3_FLAG_REJECT; t <= FW3_FLAG_DROP; t++)
+			{
+				if (has(zone->flags, handle->family, fw3_to_src_target(t)))
+				{
+					r = fw3_ipt_rule_new(handle);
+
+					snprintf(buf, sizeof(buf) - 1, "%s(src %s)",
+					         fw3_flag_names[t], zone->name);
+
+					fw3_ipt_rule_limit(r, &zone->log_limit);
+					fw3_ipt_rule_target(r, "LOG");
+					if (zone->log_prefix) {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+					} else {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					}
+					fw3_ipt_rule_append(r, "zone_%s_src_%s",
+					                    zone->name, fw3_flag_names[t]);
+				}
+
+				if (has(zone->flags, handle->family, t))
+				{
+					r = fw3_ipt_rule_new(handle);
+
+					snprintf(buf, sizeof(buf) - 1, "%s(dest %s)",
+					         fw3_flag_names[t], zone->name);
+
+					fw3_ipt_rule_limit(r, &zone->log_limit);
+					fw3_ipt_rule_target(r, "LOG");
+					if (zone->log_prefix) {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+					} else {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					}
+					fw3_ipt_rule_append(r, "zone_%s_dest_%s",
+					                    zone->name, fw3_flag_names[t]);
+				}
+			}
+		}
 		break;
 
 	case FW3_TABLE_NAT:
