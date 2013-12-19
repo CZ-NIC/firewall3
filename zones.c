@@ -79,6 +79,7 @@ const struct fw3_option fw3_zone_opts[] = {
 
 	FW3_OPT("log",                 bool,     zone,     log),
 	FW3_OPT("log_limit",           limit,    zone,     log_limit),
+	FW3_OPT("log_prefix",          string,   zone,     log_prefix),
 
 	FW3_OPT("__flags_v4",          int,      zone,     flags[0]),
 	FW3_OPT("__flags_v6",          int,      zone,     flags[1]),
@@ -410,7 +411,11 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 				fw3_ipt_rule_limit(r, &zone->log_limit);
 				fw3_ipt_rule_comment(r, "%s (mtu_fix logging)", zone->name);
 				fw3_ipt_rule_target(r, "LOG");
-				fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+				if (zone->log_prefix) {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+				} else {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+				}
 				fw3_ipt_rule_replace(r, "mssfix");
 			}
 
@@ -516,7 +521,11 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 
 					fw3_ipt_rule_limit(r, &zone->log_limit);
 					fw3_ipt_rule_target(r, "LOG");
-					fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					if (zone->log_prefix) {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+					} else {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					}
 					fw3_ipt_rule_append(r, "zone_%s_src_%s",
 					                    zone->name, fw3_flag_names[t]);
 				}
@@ -530,7 +539,11 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 
 					fw3_ipt_rule_limit(r, &zone->log_limit);
 					fw3_ipt_rule_target(r, "LOG");
-					fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					if (zone->log_prefix) {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+					} else {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					}
 					fw3_ipt_rule_append(r, "zone_%s_dest_%s",
 					                    zone->name, fw3_flag_names[t]);
 				}
