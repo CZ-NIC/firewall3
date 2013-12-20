@@ -276,9 +276,15 @@ struct fw3_defaults
 	enum fw3_flag policy_forward;
 
 	bool drop_invalid;
+	bool invalid_log;
+	struct fw3_limit invalid_log_limit;
+	const char *invalid_log_prefix;
 
 	bool syn_flood;
 	struct fw3_limit syn_flood_rate;
+	bool syn_flood_log;
+	const char *syn_flood_log_prefix;
+	struct fw3_limit syn_flood_log_limit;
 
 	bool tcp_syncookies;
 	int tcp_ecn;
