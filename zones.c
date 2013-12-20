@@ -510,16 +510,8 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 
 		if (zone->log)
 		{
-			unsigned int flag_len = 3;
-			const char log_flags[] = {
-				FW3_FLAG_DROP,
-				FW3_FLAG_REJECT,
-				FW3_FLAG_SYN_FLOOD
-			};
-			int i;
-			for (i = 0; i < flag_len; i++)
+			for (t = FW3_FLAG_REJECT; t <= FW3_FLAG_DROP; t++)
 			{
-                t = log_flags[i];
 				if (has(zone->flags, handle->family, fw3_to_src_target(t)))
 				{
 					r = fw3_ipt_rule_new(handle);

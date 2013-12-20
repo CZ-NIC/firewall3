@@ -56,6 +56,13 @@ const struct fw3_option fw3_flag_opts[] = {
 	FW3_OPT("synflood_protect",    bool,     defaults, syn_flood),
 	FW3_OPT("synflood_rate",       limit,    defaults, syn_flood_rate),
 	FW3_OPT("synflood_burst",      int,      defaults, syn_flood_rate.burst),
+	FW3_OPT("synflood_log",        bool,     defaults, syn_flood_log),
+	FW3_OPT("synflood_log_limit",  limit,    defaults, syn_flood_log_limit),
+	FW3_OPT("synflood_log_prefix", string,   defaults, syn_flood_log_prefix),
+
+	FW3_OPT("invalid_log",         bool,     defaults, invalid_log),
+	FW3_OPT("invalid_log_limit",   limit,    defaults, invalid_log_limit),
+	FW3_OPT("invalid_log_prefix",  string,   defaults, invalid_log_prefix),
 
 	FW3_OPT("tcp_syncookies",      bool,     defaults, tcp_syncookies),
 	FW3_OPT("tcp_ecn",             int,      defaults, tcp_ecn),
@@ -257,6 +264,19 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 
 			if (defs->drop_invalid)
 			{
+				if (defs->invalid_log) {
+					r = fw3_ipt_rule_new(handle);
+					fw3_ipt_rule_target(r, "LOG");
+					if (defs->invalid_log_prefix) {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix",
+								defs->invalid_log_prefix);
+					} else {
+						fw3_ipt_rule_addarg(r, false, "--log-prefix", "invalid");
+					}
+					fw3_ipt_rule_limit(r, &defs->invalid_log_limit);
+					fw3_ipt_rule_append(r, chains[i]);
+				}
+
 				r = fw3_ipt_rule_new(handle);
 				fw3_ipt_rule_extra(r, "-m conntrack --ctstate INVALID");
 				fw3_ipt_rule_target(r, "DROP");
@@ -271,6 +291,19 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 			fw3_ipt_rule_limit(r, &defs->syn_flood_rate);
 			fw3_ipt_rule_target(r, "RETURN");
 			fw3_ipt_rule_append(r, "syn_flood");
+
+			if (defs->syn_flood_log) {
+				r = fw3_ipt_rule_new(handle);
+				fw3_ipt_rule_target(r, "LOG");
+				if (defs->syn_flood_log_prefix) {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix",
+							defs->syn_flood_log_prefix);
+				} else {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix", "syn_flood");
+				}
+				fw3_ipt_rule_limit(r, &defs->syn_flood_log_limit);
+				fw3_ipt_rule_append(r, "syn_flood");
+			}
 
 			r = fw3_ipt_rule_new(handle);
 			fw3_ipt_rule_target(r, "DROP");
