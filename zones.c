@@ -517,8 +517,9 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 				FW3_FLAG_SYN_FLOOD
 			};
 			int i;
-			for (i = 0; i < flag_len; t = log_flags[i++])
+			for (i = 0; i < flag_len; i++)
 			{
+                t = log_flags[i];
 				if (has(zone->flags, handle->family, fw3_to_src_target(t)))
 				{
 					r = fw3_ipt_rule_new(handle);
