@@ -273,6 +273,7 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 					} else {
 						fw3_ipt_rule_addarg(r, false, "--log-prefix", "invalid");
 					}
+					fw3_ipt_rule_extra(r, "-m conntrack --ctstate INVALID");
 					fw3_ipt_rule_limit(r, &defs->invalid_log_limit);
 					fw3_ipt_rule_append(r, chains[i]);
 				}
