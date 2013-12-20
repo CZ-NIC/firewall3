@@ -511,7 +511,7 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 		if (zone->log)
 		{
 			unsigned int flag_len = 3;
-			const char log_flags[flag_len] = {
+			const char log_flags[] = {
 				FW3_FLAG_DROP,
 				FW3_FLAG_REJECT,
 				FW3_FLAG_SYN_FLOOD
