@@ -317,7 +317,7 @@ print_zone_chain(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	set(zone->flags, handle->family, handle->table);
 }
 
-inline const char *
+static inline const char *
 jump_target(int flag)
 {
 	switch (flag) {
