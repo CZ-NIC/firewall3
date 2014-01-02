@@ -317,6 +317,18 @@ print_zone_chain(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	set(zone->flags, handle->family, handle->table);
 }
 
+inline const char *
+jump_target(int flag)
+{
+	switch (flag) {
+		case FW3_FLAG_REJECT:
+			return "reject";
+		case FW3_FLAG_ACCEPT:
+			return "accept";
+	}
+	return fw3_flag_names[flag];
+}
+
 static void
 print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 					 bool reload, struct fw3_zone *zone,
@@ -335,9 +347,6 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 		"output",
 		"forward",
 	};
-
-#define jump_target(t) \
-	((t == FW3_FLAG_REJECT) ? "reject" : fw3_flag_names[t])
 
 	if (handle->table == FW3_TABLE_FILTER)
 	{

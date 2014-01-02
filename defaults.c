@@ -27,6 +27,7 @@ static const struct fw3_chain_spec default_chains[] = {
 	C(ANY, FILTER, UNSPEC,        "delegate_output"),
 	C(ANY, FILTER, UNSPEC,        "delegate_forward"),
 	C(ANY, FILTER, UNSPEC,        "reject"),
+	C(ANY, FILTER, UNSPEC,        "accept"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "input_rule"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "output_rule"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "forwarding_rule"),
@@ -325,6 +326,10 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 		fw3_ipt_rule_target(r, "REJECT");
 		fw3_ipt_rule_addarg(r, false, "--reject-with", "port-unreach");
 		fw3_ipt_rule_append(r, "reject");
+
+		r = fw3_ipt_rule_new(handle);
+		fw3_ipt_rule_target(r, "ACCEPT");
+		fw3_ipt_rule_append(r, "accept");
 
 		break;
 
