@@ -389,6 +389,39 @@ fw3_print_default_tail_rules(struct fw3_ipt_handle *handle,
 		fw3_ipt_rule_target(r, "reject");
 		fw3_ipt_rule_append(r, "FORWARD");
 	}
+
+	if (defs->policy_input == FW3_FLAG_ACCEPT)
+	{
+		r = fw3_ipt_rule_new(handle);
+
+		if (!r)
+			return;
+
+		fw3_ipt_rule_target(r, "accept");
+		fw3_ipt_rule_append(r, "delegate_input");
+	}
+
+	if (defs->policy_output == FW3_FLAG_ACCEPT)
+	{
+		r = fw3_ipt_rule_new(handle);
+
+		if (!r)
+			return;
+
+		fw3_ipt_rule_target(r, "accept");
+		fw3_ipt_rule_append(r, "delegate_output");
+	}
+
+	if (defs->policy_forward == FW3_FLAG_ACCEPT)
+	{
+		r = fw3_ipt_rule_new(handle);
+
+		if (!r)
+			return;
+
+		fw3_ipt_rule_target(r, "accept");
+		fw3_ipt_rule_append(r, "delegate_forward");
+	}
 }
 
 static void
