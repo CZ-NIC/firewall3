@@ -317,6 +317,10 @@ struct fw3_zone
 	struct fw3_limit log_limit;
 	const char *log_prefix;
 
+	bool log_mss;
+	struct fw3_limit log_mss_limit;
+	const char *log_mss_prefix;
+
 	bool custom_chains;
 
 	uint32_t flags[2];
