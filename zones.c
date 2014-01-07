@@ -91,6 +91,10 @@ const struct fw3_option fw3_zone_opts[] = {
 	FW3_OPT("auto_helper",         bool,     zone,     auto_helper),
 	FW3_LIST("helper",             cthelper, zone,     cthelpers),
 
+	FW3_OPT("log_mss",             bool,     zone,     log_mss),
+	FW3_OPT("log_mss_limit",       limit,    zone,     log_mss_limit),
+	FW3_OPT("log_mss_prefix",      string,   zone,     log_mss_prefix),
+
 	FW3_OPT("__flags_v4",          int,      zone,     flags[0]),
 	FW3_OPT("__flags_v6",          int,      zone,     flags[1]),
 
@@ -218,6 +222,7 @@ fw3_alloc_zone(void)
 	zone->auto_helper = true;
 	zone->custom_chains = true;
 	zone->log_limit.rate = 10;
+	zone->log_mss_limit.rate = 10;
 
 	return zone;
 }
@@ -542,18 +547,18 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	{
 		if (zone->mtu_fix)
 		{
-			if (zone->log & FW3_ZONE_LOG_MANGLE)
+			if (zone->log_mss || zone->log & FW3_ZONE_LOG_MANGLE)
 			{
 				snprintf(buf, sizeof(buf) - 1, "MSSFIX %s out: ", zone->name);
 
 				r = fw3_ipt_rule_create(handle, &tcp, NULL, dev, NULL, sub);
 				fw3_ipt_rule_addarg(r, false, "--tcp-flags", "SYN,RST");
 				fw3_ipt_rule_addarg(r, false, "SYN", NULL);
-				fw3_ipt_rule_limit(r, &zone->log_limit);
+				fw3_ipt_rule_limit(r, &zone->log_mss_limit);
 				fw3_ipt_rule_comment(r, "Zone %s MTU fix logging", zone->name);
 				fw3_ipt_rule_target(r, "LOG");
-				if (zone->log_prefix) {
-					fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
+				if (zone->log_mss_prefix) {
+					fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_mss_prefix);
 				} else {
 					fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
 				}
