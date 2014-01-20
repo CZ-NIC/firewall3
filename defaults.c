@@ -50,10 +50,12 @@ const struct fw3_option fw3_flag_opts[] = {
 	FW3_OPT("synflood_log",        bool,     defaults, syn_flood_log),
 	FW3_OPT("synflood_log_limit",  limit,    defaults, syn_flood_log_limit),
 	FW3_OPT("synflood_log_prefix", string,   defaults, syn_flood_log_prefix),
+	FW3_OPT("synflood_log_level",  string,   defaults, syn_flood_log_level),
 
 	FW3_OPT("invalid_log",         bool,     defaults, invalid_log),
 	FW3_OPT("invalid_log_limit",   limit,    defaults, invalid_log_limit),
 	FW3_OPT("invalid_log_prefix",  string,   defaults, invalid_log_prefix),
+	FW3_OPT("invalid_log_level",   string,   defaults, invalid_log_level),
 
 	FW3_OPT("tcp_syncookies",      bool,     defaults, tcp_syncookies),
 	FW3_OPT("tcp_ecn",             int,      defaults, tcp_ecn),
@@ -268,6 +270,10 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 					} else {
 						fw3_ipt_rule_addarg(r, false, "--log-prefix", "invalid");
 					}
+					if (defs->invalid_log_level) {
+						fw3_ipt_rule_addarg(r, false, "--log-level",
+								defs->invalid_log_level);
+					}
 					fw3_ipt_rule_extra(r, "-m conntrack --ctstate INVALID");
 					fw3_ipt_rule_limit(r, &defs->invalid_log_limit);
 					fw3_ipt_rule_append(r, chains[i]);
@@ -296,6 +302,10 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 							defs->syn_flood_log_prefix);
 				} else {
 					fw3_ipt_rule_addarg(r, false, "--log-prefix", "syn_flood");
+				}
+				if (defs->syn_flood_log_level) {
+					fw3_ipt_rule_addarg(r, false, "--log-level",
+							defs->syn_flood_log_level);
 				}
 				fw3_ipt_rule_limit(r, &defs->syn_flood_log_limit);
 				fw3_ipt_rule_append(r, "syn_flood");

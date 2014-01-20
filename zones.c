@@ -87,6 +87,7 @@ const struct fw3_option fw3_zone_opts[] = {
 	FW3_OPT("log",                 int,      zone,     log),
 	FW3_OPT("log_limit",           limit,    zone,     log_limit),
 	FW3_OPT("log_prefix",          string,   zone,     log_prefix),
+	FW3_OPT("log_level",           string,   zone,     log_level),
 
 	FW3_OPT("auto_helper",         bool,     zone,     auto_helper),
 	FW3_LIST("helper",             cthelper, zone,     cthelpers),
@@ -94,6 +95,7 @@ const struct fw3_option fw3_zone_opts[] = {
 	FW3_OPT("log_mss",             bool,     zone,     log_mss),
 	FW3_OPT("log_mss_limit",       limit,    zone,     log_mss_limit),
 	FW3_OPT("log_mss_prefix",      string,   zone,     log_mss_prefix),
+	FW3_OPT("log_mss_level",       string,   zone,     log_mss_level),
 
 	FW3_OPT("__flags_v4",          int,      zone,     flags[0]),
 	FW3_OPT("__flags_v6",          int,      zone,     flags[1]),
@@ -562,6 +564,9 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 				} else {
 					fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
 				}
+				if (zone->log_mss_level) {
+					fw3_ipt_rule_addarg(r, false, "--log-level", zone->log_mss_level);
+				}
 				fw3_ipt_rule_replace(r, "FORWARD");
 			}
 
@@ -701,6 +706,9 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 					} else {
 						fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
 					}
+					if (zone->log_level) {
+						fw3_ipt_rule_addarg(r, false, "--log-level", zone->log_level);
+					}
 					fw3_ipt_rule_append(r, "zone_%s_src_%s",
 					                    zone->name, fw3_flag_names[t]);
 				}
@@ -718,6 +726,9 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 						fw3_ipt_rule_addarg(r, false, "--log-prefix", zone->log_prefix);
 					} else {
 						fw3_ipt_rule_addarg(r, false, "--log-prefix", buf);
+					}
+					if (zone->log_level) {
+						fw3_ipt_rule_addarg(r, false, "--log-level", zone->log_level);
 					}
 					fw3_ipt_rule_append(r, "zone_%s_dest_%s",
 					                    zone->name, fw3_flag_names[t]);

@@ -279,12 +279,14 @@ struct fw3_defaults
 	bool invalid_log;
 	struct fw3_limit invalid_log_limit;
 	const char *invalid_log_prefix;
+	const char *invalid_log_level;
 
 	bool syn_flood;
 	struct fw3_limit syn_flood_rate;
 	bool syn_flood_log;
-	const char *syn_flood_log_prefix;
 	struct fw3_limit syn_flood_log_limit;
+	const char *syn_flood_log_prefix;
+	const char *syn_flood_log_level;
 
 	bool tcp_syncookies;
 	int tcp_ecn;
@@ -335,10 +337,12 @@ struct fw3_zone
 	int log;
 	struct fw3_limit log_limit;
 	const char *log_prefix;
+	const char *log_level;
 
 	bool log_mss;
 	struct fw3_limit log_mss_limit;
 	const char *log_mss_prefix;
+	const char *log_mss_level;
 
 	bool custom_chains;
 	bool auto_helper;
