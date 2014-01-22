@@ -1,7 +1,8 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013-2018 Jo-Philipp Wich <jo@mein.io>
+ *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2014 CZ.NIC, z.s.p.o. (http://www.nic.cz/)
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
