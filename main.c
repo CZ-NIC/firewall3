@@ -332,30 +332,28 @@ reload(void)
 
 	for (family = FW3_FAMILY_V4; family <= FW3_FAMILY_V6; family++)
 	{
-		if (!family_running(family))
-			goto start;
+		if (family_running(family)) {
+			for (table = FW3_TABLE_FILTER; table <= FW3_TABLE_RAW; table++)
+			{
+				if (!fw3_has_table(family == FW3_FAMILY_V6, fw3_flag_names[table]))
+					continue;
 
-		for (table = FW3_TABLE_FILTER; table <= FW3_TABLE_RAW; table++)
-		{
-			if (!fw3_has_table(family == FW3_FAMILY_V6, fw3_flag_names[table]))
-				continue;
+				if (!(handle = fw3_ipt_open(family, table)))
+					continue;
 
-			if (!(handle = fw3_ipt_open(family, table)))
-				continue;
+				info(" * Clearing %s %s table",
+					 fw3_flag_names[family], fw3_flag_names[table]);
 
-			info(" * Clearing %s %s table",
-			     fw3_flag_names[family], fw3_flag_names[table]);
+				fw3_flush_rules(handle, run_state, true);
+				fw3_flush_zones(handle, run_state, true);
+				fw3_ipt_commit(handle);
+				fw3_ipt_close(handle);
+			}
 
-			fw3_flush_rules(handle, run_state, true);
-			fw3_flush_zones(handle, run_state, true);
-			fw3_ipt_commit(handle);
-			fw3_ipt_close(handle);
+			family_set(run_state, family, false);
+			family_set(cfg_state, family, false);
 		}
 
-		family_set(run_state, family, false);
-		family_set(cfg_state, family, false);
-
-start:
 		if (family == FW3_FAMILY_V6 && cfg_state->defaults.disable_ipv6)
 			continue;
 
