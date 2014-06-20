@@ -46,6 +46,7 @@
 	__ipt_module(icmp)			\
 	__ipt_module(icmp6)			\
 	__ipt_module(limit)			\
+	__ipt_module(connlimit)			\
 	__ipt_module(mac)			\
 	__ipt_module(mark)			\
 	__ipt_module(set)			\
@@ -141,6 +142,8 @@ void fw3_ipt_rule_src_dest(struct fw3_ipt_rule *r,
 
 void fw3_ipt_rule_sport_dport(struct fw3_ipt_rule *r,
                               struct fw3_port *sp, struct fw3_port *dp);
+
+void fw3_ipt_rule_device(struct fw3_ipt_rule *r, const char *device, bool out);
 
 void fw3_ipt_rule_mac(struct fw3_ipt_rule *r, struct fw3_mac *mac);
 

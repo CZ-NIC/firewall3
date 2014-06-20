@@ -16,6 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define _GNU_SOURCE
 #include "utils.h"
 #include "options.h"
 
@@ -696,7 +697,7 @@ fw3_hotplug(bool add, void *zone, void *device)
 	close(0);
 	close(1);
 	close(2);
-	chdir("/");
+	if (chdir("/")) {};
 
 	clearenv();
 	setenv("ACTION",    add ? "add" : "remove", 1);

@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2014 Jo-Philipp Wich <jow@openwrt.org>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,24 +16,24 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __FW3_UBUS_H
-#define __FW3_UBUS_H
-
-#include <libubus.h>
-#include <libubox/blobmsg.h>
+#ifndef __FW3_SNATS_H
+#define __FW3_SNATS_H
 
 #include "options.h"
+#include "zones.h"
+#include "ipsets.h"
+#include "ubus.h"
+#include "iptables.h"
 
+extern const struct fw3_option fw3_snat_opts[];
 
-bool fw3_ubus_connect(void);
-void fw3_ubus_disconnect(void);
+void fw3_load_snats(struct fw3_state *state, struct uci_package *p, struct blob_attr *a);
+void fw3_print_snats(struct fw3_ipt_handle *handle, struct fw3_state *state);
 
-struct fw3_device * fw3_ubus_device(const char *net);
-
-struct list_head * fw3_ubus_address(const char *net);
-
-void fw3_ubus_zone_devices(struct fw3_zone *zone);
-
-void fw3_ubus_rules(struct blob_buf *b);
+static inline void fw3_free_snat(struct fw3_snat *snat)
+{
+	list_del(&snat->list);
+	fw3_free_object(snat, fw3_snat_opts);
+}
 
 #endif

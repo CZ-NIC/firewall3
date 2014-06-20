@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013-2014 Jo-Philipp Wich <jow@openwrt.org>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +24,7 @@
 #include "zones.h"
 #include "rules.h"
 #include "redirects.h"
+#include "snats.h"
 #include "forwards.h"
 #include "ipsets.h"
 #include "includes.h"
@@ -97,11 +98,16 @@ build_state(bool runtime)
 		cfg_state = state;
 	}
 
+
+	struct blob_buf b = {NULL, NULL, 0, NULL};
+	fw3_ubus_rules(&b);
+
 	fw3_load_defaults(state, p);
 	fw3_load_ipsets(state, p);
 	fw3_load_zones(state, p);
-	fw3_load_rules(state, p);
+	fw3_load_rules(state, p, b.head);
 	fw3_load_redirects(state, p);
+	fw3_load_snats(state, p, b.head);
 	fw3_load_forwards(state, p);
 	fw3_load_includes(state, p);
 
@@ -121,6 +127,9 @@ free_state(struct fw3_state *state)
 
 	list_for_each_safe(cur, tmp, &state->redirects)
 		fw3_free_redirect((struct fw3_redirect *)cur);
+
+	list_for_each_safe(cur, tmp, &state->snats)
+		fw3_free_snat((struct fw3_snat *)cur);
 
 	list_for_each_safe(cur, tmp, &state->forwards)
 		fw3_free_forward((struct fw3_forward *)cur);
@@ -275,6 +284,7 @@ start(void)
 			fw3_print_default_head_rules(handle, cfg_state, false);
 			fw3_print_rules(handle, cfg_state);
 			fw3_print_redirects(handle, cfg_state);
+			fw3_print_snats(handle, cfg_state);
 			fw3_print_forwards(handle, cfg_state);
 			fw3_print_zone_rules(handle, cfg_state, false);
 			fw3_print_default_tail_rules(handle, cfg_state, false);
@@ -366,6 +376,7 @@ reload(void)
 			fw3_print_default_head_rules(handle, cfg_state, true);
 			fw3_print_rules(handle, cfg_state);
 			fw3_print_redirects(handle, cfg_state);
+			fw3_print_snats(handle, cfg_state);
 			fw3_print_forwards(handle, cfg_state);
 			fw3_print_zone_rules(handle, cfg_state, true);
 			fw3_print_default_tail_rules(handle, cfg_state, true);
@@ -470,7 +481,7 @@ int main(int argc, char **argv)
 			break;
 
 		case 'q':
-			freopen("/dev/null", "w", stderr);
+			if (freopen("/dev/null", "w", stderr)) {}
 			break;
 
 		case 'h':
@@ -505,7 +516,7 @@ int main(int argc, char **argv)
 #endif
 		}
 
-		freopen("/dev/null", "w", stderr);
+		if (freopen("/dev/null", "w", stderr)) {};
 
 		cfg_state->disable_ipsets = true;
 		print_family = family;
