@@ -330,7 +330,7 @@ static void set_target(struct fw3_ipt_rule *r, struct fw3_rule *rule)
 		return;
 
 	case FW3_FLAG_ACCEPT:
-		name = "accept";
+		name = "ACCEPT";
 		break;
 
 	case FW3_FLAG_DROP:
