@@ -71,7 +71,7 @@ const char *fw3_flag_names[__FW3_FLAG_MAX] = {
 	"IPv4",
 	"IPv6",
 
-	"ACCEPT",
+	"accept",
 	"REJECT",
 	"DROP",
 	"NOTRACK",
@@ -80,7 +80,7 @@ const char *fw3_flag_names[__FW3_FLAG_MAX] = {
 	"SNAT",
 	"MASQUERADE",
 
-	"ACCEPT",
+	"accept",
 	"REJECT",
 	"DROP",
 };

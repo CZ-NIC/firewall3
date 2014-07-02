@@ -305,7 +305,7 @@ set_target(struct fw3_ipt_rule *r, struct fw3_snat *snat,
 	}
 	else if (snat->target == FW3_FLAG_ACCEPT)
 	{
-		fw3_ipt_rule_target(r, "accept");
+		fw3_ipt_rule_target(r, "ACCEPT");
 	}
 	else
 	{
