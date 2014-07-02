@@ -117,9 +117,9 @@ append_chain(struct fw3_ipt_rule *r, struct fw3_forward *forward)
 static void set_target(struct fw3_ipt_rule *r, struct fw3_forward *forward)
 {
 	if (forward->dest.any || !forward->dest.set)
-		fw3_ipt_rule_target(r, "ACCEPT");
+		fw3_ipt_rule_target(r, "accept");
 	else
-		fw3_ipt_rule_target(r, "zone_%s_dest_ACCEPT", forward->dest.name);
+		fw3_ipt_rule_target(r, "zone_%s_dest_accept", forward->dest.name);
 }
 
 static void

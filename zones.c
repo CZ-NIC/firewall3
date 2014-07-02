@@ -29,11 +29,11 @@ static const struct fw3_chain_spec zone_chains[] = {
 	C(ANY, FILTER, UNSPEC,        "zone_%s_output"),
 	C(ANY, FILTER, UNSPEC,        "zone_%s_forward"),
 
-	C(ANY, FILTER, SRC_ACCEPT,    "zone_%s_src_ACCEPT"),
+	C(ANY, FILTER, SRC_ACCEPT,    "zone_%s_src_accept"),
 	C(ANY, FILTER, SRC_REJECT,    "zone_%s_src_REJECT"),
 	C(ANY, FILTER, SRC_DROP,      "zone_%s_src_DROP"),
 
-	C(ANY, FILTER, ACCEPT,        "zone_%s_dest_ACCEPT"),
+	C(ANY, FILTER, ACCEPT,        "zone_%s_dest_accept"),
 	C(ANY, FILTER, REJECT,        "zone_%s_dest_REJECT"),
 	C(ANY, FILTER, DROP,          "zone_%s_dest_DROP"),
 
