@@ -91,6 +91,8 @@ const struct fw3_option fw3_zone_opts[] = {
 	FW3_OPT("__flags_v4",          int,      zone,     flags[0]),
 	FW3_OPT("__flags_v6",          int,      zone,     flags[1]),
 
+	FW3_LIST("__addrs",            address,  zone,     old_addrs),
+
 	{ }
 };
 
@@ -136,18 +138,17 @@ fw3_alloc_zone(void)
 {
 	struct fw3_zone *zone;
 
-	zone = malloc(sizeof(*zone));
-
+	zone = calloc(1, sizeof(*zone));
 	if (!zone)
 		return NULL;
-
-	memset(zone, 0, sizeof(*zone));
 
 	INIT_LIST_HEAD(&zone->networks);
 	INIT_LIST_HEAD(&zone->devices);
 	INIT_LIST_HEAD(&zone->subnets);
 	INIT_LIST_HEAD(&zone->masq_src);
 	INIT_LIST_HEAD(&zone->masq_dest);
+
+	INIT_LIST_HEAD(&zone->old_addrs);
 
 	zone->enabled = true;
 	zone->custom_chains = true;
@@ -235,11 +236,11 @@ fw3_load_zones(struct fw3_state *state, struct uci_package *p)
 		}
 
 		setbit(zone->flags[0], fw3_to_src_target(zone->policy_input));
-		setbit(zone->flags[0], fw3_to_src_target(zone->policy_forward));
+		setbit(zone->flags[0], zone->policy_forward);
 		setbit(zone->flags[0], zone->policy_output);
 
 		setbit(zone->flags[1], fw3_to_src_target(zone->policy_input));
-		setbit(zone->flags[1], fw3_to_src_target(zone->policy_forward));
+		setbit(zone->flags[1], zone->policy_forward);
 		setbit(zone->flags[1], zone->policy_output);
 
 		list_add_tail(&zone->list, &state->zones);
@@ -519,7 +520,7 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 		fw3_ipt_rule_append(r, "zone_%s_input", zone->name);
 
 		r = fw3_ipt_rule_new(handle);
-		fw3_ipt_rule_target(r, "zone_%s_src_%s", zone->name,
+		fw3_ipt_rule_target(r, "zone_%s_dest_%s", zone->name,
 		                     fw3_flag_names[zone->policy_forward]);
 		fw3_ipt_rule_append(r, "zone_%s_forward", zone->name);
 
@@ -720,31 +721,16 @@ fw3_resolve_zone_addresses(struct fw3_zone *zone)
 {
 	struct fw3_device *net;
 	struct fw3_address *addr, *tmp;
-	struct list_head *addrs, *all;
+	struct list_head *all;
 
-	all = malloc(sizeof(*all));
-
+	all = calloc(1, sizeof(*all));
 	if (!all)
 		return NULL;
 
-	memset(all, 0, sizeof(*all));
 	INIT_LIST_HEAD(all);
 
 	list_for_each_entry(net, &zone->networks, list)
-	{
-		addrs = fw3_ubus_address(net->name);
-
-		if (!addrs)
-			continue;
-
-		list_for_each_entry_safe(addr, tmp, addrs, list)
-		{
-			list_del(&addr->list);
-			list_add_tail(&addr->list, all);
-		}
-
-		free(addrs);
-	}
+		fw3_ubus_address(all, net->name);
 
 	list_for_each_entry(addr, &zone->subnets, list)
 	{

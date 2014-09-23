@@ -203,12 +203,9 @@ fw3_alloc_ipset(void)
 {
 	struct fw3_ipset *ipset;
 
-	ipset = malloc(sizeof(*ipset));
-
+	ipset = calloc(1, sizeof(*ipset));
 	if (!ipset)
 		return NULL;
-
-	memset(ipset, 0, sizeof(*ipset));
 
 	INIT_LIST_HEAD(&ipset->datatypes);
 
@@ -306,7 +303,7 @@ create_ipset(struct fw3_ipset *ipset, struct fw3_state *state)
 
 	if (ipset->iprange.set)
 	{
-		fw3_pr(" range %s", fw3_address_to_string(&ipset->iprange, false));
+		fw3_pr(" range %s", fw3_address_to_string(&ipset->iprange, false, true));
 	}
 	else if (ipset->portrange.set)
 	{

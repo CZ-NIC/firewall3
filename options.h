@@ -176,7 +176,6 @@ struct fw3_address
 	bool invert;
 	bool resolved;
 	enum fw3_family family;
-	int mask;
 	union {
 		struct in_addr v4;
 		struct in6_addr v6;
@@ -186,7 +185,7 @@ struct fw3_address
 		struct in_addr v4;
 		struct in6_addr v6;
 		struct ether_addr mac;
-	} address2;
+	} mask;
 };
 
 struct fw3_mac
@@ -331,6 +330,8 @@ struct fw3_zone
 	bool custom_chains;
 
 	uint32_t flags[2];
+
+	struct list_head old_addrs;
 };
 
 struct fw3_rule
@@ -579,6 +580,6 @@ bool fw3_parse_blob_options(void *s, const struct fw3_option *opts,
                        struct blob_attr *a);
 
 const char * fw3_address_to_string(struct fw3_address *address,
-                                   bool allow_invert);
+                                   bool allow_invert, bool as_cidr);
 
 #endif

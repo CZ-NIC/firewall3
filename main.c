@@ -45,12 +45,10 @@ build_state(bool runtime)
 	struct uci_package *p = NULL;
 	FILE *sf;
 
-	state = malloc(sizeof(*state));
-
+	state = calloc(1, sizeof(*state));
 	if (!state)
 		error("Out of memory");
 
-	memset(state, 0, sizeof(*state));
 	state->uci = uci_alloc_context();
 
 	if (!state->uci)
@@ -169,8 +167,6 @@ family_set(struct fw3_state *state, enum fw3_family family, bool set)
 static int
 stop(bool complete)
 {
-	FILE *ct;
-
 	int rv = 1;
 	enum fw3_family family;
 	enum fw3_table table;
@@ -226,13 +222,8 @@ stop(bool complete)
 	if (run_state)
 		fw3_destroy_ipsets(run_state);
 
-	if (complete && (ct = fopen("/proc/net/nf_conntrack", "w")) != NULL)
-	{
-		info(" * Flushing conntrack table ...");
-
-		fwrite("f\n", 2, 1, ct);
-		fclose(ct);
-	}
+	if (complete)
+		fw3_flush_conntrack(NULL);
 
 	if (!rv && run_state)
 		fw3_write_statefile(run_state);
@@ -306,6 +297,7 @@ start(void)
 
 	if (!rv)
 	{
+		fw3_flush_conntrack(run_state);
 		fw3_set_defaults(cfg_state);
 
 		if (!print_family)
@@ -395,6 +387,8 @@ reload(void)
 
 	if (!rv)
 	{
+		fw3_flush_conntrack(run_state);
+
 		fw3_set_defaults(cfg_state);
 		fw3_run_includes(cfg_state, true);
 		fw3_hotplug_zones(cfg_state, true);
@@ -447,12 +441,42 @@ lookup_device(const char *dev)
 }
 
 static int
+lookup_zone(const char *zone, const char *device)
+{
+	struct fw3_zone *z;
+	struct fw3_device *d;
+
+	list_for_each_entry(z, &cfg_state->zones, list)
+	{
+		if (strcmp(z->name, zone))
+			continue;
+
+		list_for_each_entry(d, &z->devices, list)
+		{
+			if (device && strcmp(device, d->name))
+				continue;
+
+			printf("%s\n", d->name);
+
+			if (device)
+				return 0;
+		}
+
+		if (!device)
+			return 0;
+	}
+
+	return 1;
+}
+
+static int
 usage(void)
 {
 	fprintf(stderr, "fw3 [-4] [-6] [-q] print\n");
 	fprintf(stderr, "fw3 [-q] {start|stop|flush|reload|restart}\n");
 	fprintf(stderr, "fw3 [-q] network {net}\n");
 	fprintf(stderr, "fw3 [-q] device {dev}\n");
+	fprintf(stderr, "fw3 [-q] zone {zone} [dev]\n");
 
 	return 1;
 }
@@ -572,6 +596,10 @@ int main(int argc, char **argv)
 	else if (!strcmp(argv[optind], "device") && (optind + 1) < argc)
 	{
 		rv = lookup_device(argv[optind + 1]);
+	}
+	else if (!strcmp(argv[optind], "zone") && (optind + 1) < argc)
+	{
+		rv = lookup_zone(argv[optind + 1], argv[optind + 2]);
 	}
 	else
 	{
