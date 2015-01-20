@@ -136,7 +136,7 @@ resolve_dest(struct uci_element *e, struct fw3_redirect *redir,
 
 	list_for_each_entry(zone, &state->zones, list)
 	{
-		addrs = fw3_resolve_zone_addresses(zone);
+		addrs = fw3_resolve_zone_addresses(zone, NULL);
 
 		if (!addrs)
 			continue;
@@ -312,20 +312,20 @@ fw3_load_redirects(struct fw3_state *state, struct uci_package *p)
 				set(redir->_src->flags, FW3_FAMILY_V4, redir->target);
 				redir->_src->conntrack = true;
 				valid = true;
-			}
 
-			if (!check_local(e, redir, state) && !redir->dest.set &&
-			    resolve_dest(e, redir, state))
-			{
-				warn_elem(e, "does not specify a destination, assuming '%s'",
-				          redir->dest.name);
-			}
+				if (!check_local(e, redir, state) && !redir->dest.set &&
+				    resolve_dest(e, redir, state))
+				{
+					warn_elem(e, "does not specify a destination, assuming '%s'",
+					          redir->dest.name);
+				}
 
-			if (redir->reflection && redir->_dest && redir->_src->masq)
-			{
-				set(redir->_dest->flags, FW3_FAMILY_V4, FW3_FLAG_ACCEPT);
-				set(redir->_dest->flags, FW3_FAMILY_V4, FW3_FLAG_DNAT);
-				set(redir->_dest->flags, FW3_FAMILY_V4, FW3_FLAG_SNAT);
+				if (redir->reflection && redir->_dest && redir->_src->masq)
+				{
+					set(redir->_dest->flags, FW3_FAMILY_V4, FW3_FLAG_ACCEPT);
+					set(redir->_dest->flags, FW3_FAMILY_V4, FW3_FLAG_DNAT);
+					set(redir->_dest->flags, FW3_FAMILY_V4, FW3_FLAG_SNAT);
+				}
 			}
 		}
 		else
@@ -593,8 +593,8 @@ expand_redirect(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	if (!redir->_dest || !redir->_src->masq)
 		return;
 
-	ext_addrs = fw3_resolve_zone_addresses(redir->_src);
-	int_addrs = fw3_resolve_zone_addresses(redir->_dest);
+	ext_addrs = fw3_resolve_zone_addresses(redir->_src, &redir->ip_dest);
+	int_addrs = fw3_resolve_zone_addresses(redir->_dest, NULL);
 
 	if (!ext_addrs || !int_addrs)
 		goto out;
