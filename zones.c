@@ -80,6 +80,7 @@ const struct fw3_option fw3_zone_opts[] = {
 
 	FW3_OPT("log",                 bool,     zone,     log),
 	FW3_OPT("log_limit",           limit,    zone,     log_limit),
+	FW3_OPT("log_limit_burst",     int,      zone,     log_limit.burst),
 	FW3_OPT("log_prefix",          string,   zone,     log_prefix),
 	FW3_OPT("log_level",           string,   zone,     log_level),
 
