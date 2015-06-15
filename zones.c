@@ -331,6 +331,8 @@ static inline const char *
 jump_target(int flag)
 {
 	switch (flag) {
+		case FW3_FLAG_DROP:
+			return "drop";
 		case FW3_FLAG_REJECT:
 			return "reject";
 		case FW3_FLAG_ACCEPT:

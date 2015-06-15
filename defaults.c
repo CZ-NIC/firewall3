@@ -28,6 +28,7 @@ static const struct fw3_chain_spec default_chains[] = {
 	C(ANY, FILTER, UNSPEC,        "delegate_output"),
 	C(ANY, FILTER, UNSPEC,        "delegate_forward"),
 	C(ANY, FILTER, UNSPEC,        "reject"),
+	C(ANY, FILTER, UNSPEC,        "drop"),
 	C(ANY, FILTER, UNSPEC,        "accept"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "input_rule"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "output_rule"),
@@ -339,6 +340,10 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 		fw3_ipt_rule_append(r, "reject");
 
 		r = fw3_ipt_rule_new(handle);
+		fw3_ipt_rule_target(r, "DROP");
+		fw3_ipt_rule_append(r, "drop");
+
+		r = fw3_ipt_rule_new(handle);
 		fw3_ipt_rule_target(r, "ACCEPT");
 		fw3_ipt_rule_append(r, "accept");
 
@@ -373,6 +378,39 @@ fw3_print_default_tail_rules(struct fw3_ipt_handle *handle,
 
 	if (handle->table != FW3_TABLE_FILTER)
 		return;
+
+	if (defs->policy_input == FW3_FLAG_DROP)
+	{
+		r = fw3_ipt_rule_new(handle);
+
+		if (!r)
+			return;
+
+		fw3_ipt_rule_target(r, "drop");
+		fw3_ipt_rule_append(r, "delegate_input");
+	}
+
+	if (defs->policy_output == FW3_FLAG_DROP)
+	{
+		r = fw3_ipt_rule_new(handle);
+
+		if (!r)
+			return;
+
+		fw3_ipt_rule_target(r, "drop");
+		fw3_ipt_rule_append(r, "delegate_output");
+	}
+
+	if (defs->policy_forward == FW3_FLAG_DROP)
+	{
+		r = fw3_ipt_rule_new(handle);
+
+		if (!r)
+			return;
+
+		fw3_ipt_rule_target(r, "drop");
+		fw3_ipt_rule_append(r, "delegate_forward");
+	}
 
 	if (defs->policy_input == FW3_FLAG_REJECT)
 	{
