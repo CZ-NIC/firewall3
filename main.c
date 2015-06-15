@@ -506,11 +506,11 @@ lookup_zone(const char *zone, const char *device)
 static int
 usage(void)
 {
-	fprintf(stderr, "fw3 [-4] [-6] [-q] print\n");
-	fprintf(stderr, "fw3 [-q] {start|stop|flush|reload|restart}\n");
-	fprintf(stderr, "fw3 [-q] network {net}\n");
-	fprintf(stderr, "fw3 [-q] device {dev}\n");
-	fprintf(stderr, "fw3 [-q] zone {zone} [dev]\n");
+	fprintf(stderr, "fw3 [-4] [-6] [-q] [-d] print\n");
+	fprintf(stderr, "fw3 [-q] [-d] {start|stop|flush|reload|restart}\n");
+	fprintf(stderr, "fw3 [-q] [-d] network {net}\n");
+	fprintf(stderr, "fw3 [-q] [-d] device {dev}\n");
+	fprintf(stderr, "fw3 [-q] [-d] zone {zone} [dev]\n");
 
 	return 1;
 }
