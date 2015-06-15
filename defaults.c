@@ -32,8 +32,8 @@ static const struct fw3_chain_spec default_chains[] = {
 	C(ANY, FILTER, CUSTOM_CHAINS, "forwarding_rule"),
 	C(ANY, FILTER, SYN_FLOOD,     "syn_flood"),
 
-	C(V4,  NAT,    CUSTOM_CHAINS, "prerouting_rule"),
-	C(V4,  NAT,    CUSTOM_CHAINS, "postrouting_rule"),
+	C(ANY,  NAT,    CUSTOM_CHAINS, "prerouting_rule"),
+	C(ANY,  NAT,    CUSTOM_CHAINS, "postrouting_rule"),
 
 	{ }
 };
