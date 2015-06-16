@@ -37,8 +37,8 @@ static const struct fw3_chain_spec zone_chains[] = {
 	C(ANY, FILTER, REJECT,        "zone_%s_dest_REJECT"),
 	C(ANY, FILTER, DROP,          "zone_%s_dest_DROP"),
 
-	C(V4,  NAT,    SNAT,          "zone_%s_postrouting"),
-	C(V4,  NAT,    DNAT,          "zone_%s_prerouting"),
+	C(ANY, NAT,    SNAT,          "zone_%s_postrouting"),
+	C(ANY, NAT,    DNAT,          "zone_%s_prerouting"),
 
 	C(ANY, RAW,    NOTRACK,       "zone_%s_notrack"),
 
@@ -46,8 +46,8 @@ static const struct fw3_chain_spec zone_chains[] = {
 	C(ANY, FILTER, CUSTOM_CHAINS, "output_%s_rule"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "forwarding_%s_rule"),
 
-	C(V4,  NAT,    CUSTOM_CHAINS, "prerouting_%s_rule"),
-	C(V4,  NAT,    CUSTOM_CHAINS, "postrouting_%s_rule"),
+	C(ANY, NAT,    CUSTOM_CHAINS, "prerouting_%s_rule"),
+	C(ANY, NAT,    CUSTOM_CHAINS, "postrouting_%s_rule"),
 
 	{ }
 };
@@ -227,6 +227,7 @@ fw3_load_zones(struct fw3_state *state, struct uci_package *p)
 		if (zone->masq)
 		{
 			setbit(zone->flags[0], FW3_FLAG_SNAT);
+			setbit(zone->flags[1], FW3_FLAG_SNAT);
 			zone->conntrack = true;
 		}
 
@@ -234,6 +235,8 @@ fw3_load_zones(struct fw3_state *state, struct uci_package *p)
 		{
 			setbit(zone->flags[0], FW3_FLAG_SNAT);
 			setbit(zone->flags[0], FW3_FLAG_DNAT);
+			setbit(zone->flags[1], FW3_FLAG_SNAT);
+			setbit(zone->flags[1], FW3_FLAG_DNAT);
 		}
 
 		setbit(zone->flags[0], fw3_to_src_target(zone->policy_input));
