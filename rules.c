@@ -337,7 +337,7 @@ static void set_target(struct fw3_ipt_rule *r, struct fw3_rule *rule)
 		break;
 
 	case FW3_FLAG_DROP:
-		name = "drop";
+		name = "DROP";
 		break;
 
 	default:
