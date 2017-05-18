@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013-2014 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013-2014 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -718,7 +718,7 @@ fw3_parse_weekdays(void *ptr, const char *val, bool is_list)
 
 	if (*val == '!')
 	{
-		setbit(*(uint8_t *)ptr, 0);
+		fw3_setbit(*(uint8_t *)ptr, 0);
 		while (isspace(*++val));
 	}
 
@@ -738,7 +738,7 @@ fw3_parse_weekdays(void *ptr, const char *val, bool is_list)
 			}
 		}
 
-		setbit(*(uint8_t *)ptr, w);
+		fw3_setbit(*(uint8_t *)ptr, w);
 	}
 
 	free(s);
@@ -753,7 +753,7 @@ fw3_parse_monthdays(void *ptr, const char *val, bool is_list)
 
 	if (*val == '!')
 	{
-		setbit(*(uint32_t *)ptr, 0);
+		fw3_setbit(*(uint32_t *)ptr, 0);
 		while (isspace(*++val));
 	}
 
@@ -770,7 +770,7 @@ fw3_parse_monthdays(void *ptr, const char *val, bool is_list)
 			return false;
 		}
 
-		setbit(*(uint32_t *)ptr, d);
+		fw3_setbit(*(uint32_t *)ptr, d);
 	}
 
 	free(s);

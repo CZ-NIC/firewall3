@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013-2014 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013-2014 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -82,7 +82,7 @@ build_state(bool runtime)
 	else
 	{
 		if (!fw3_ubus_connect())
-			error("Failed to connect to ubus");
+			warn("Failed to connect to ubus");
 
 		if (uci_load(state->uci, "firewall", &p))
 		{
@@ -104,13 +104,13 @@ build_state(bool runtime)
 	fw3_ubus_rules(&b);
 
 	fw3_load_defaults(state, p);
-	fw3_load_ipsets(state, p);
+	fw3_load_ipsets(state, p, b.head);
 	fw3_load_zones(state, p);
 	fw3_load_rules(state, p, b.head);
-	fw3_load_redirects(state, p);
+	fw3_load_redirects(state, p, b.head);
 	fw3_load_snats(state, p, b.head);
-	fw3_load_forwards(state, p);
-	fw3_load_includes(state, p);
+	fw3_load_forwards(state, p, b.head);
+	fw3_load_includes(state, p, b.head);
 
 	return true;
 }
@@ -402,6 +402,35 @@ reload(void)
 }
 
 static int
+gc(void)
+{
+	enum fw3_family family;
+	enum fw3_table table;
+	struct fw3_ipt_handle *handle;
+
+	for (family = FW3_FAMILY_V4; family <= FW3_FAMILY_V6; family++)
+	{
+		if (family == FW3_FAMILY_V6 && cfg_state->defaults.disable_ipv6)
+			continue;
+
+		for (table = FW3_TABLE_FILTER; table <= FW3_TABLE_RAW; table++)
+		{
+			if (!fw3_has_table(family == FW3_FAMILY_V6, fw3_flag_names[table]))
+				continue;
+
+			if (!(handle = fw3_ipt_open(family, table)))
+				continue;
+
+			fw3_ipt_gc(handle);
+			fw3_ipt_commit(handle);
+			fw3_ipt_close(handle);
+		}
+	}
+
+	return 0;
+}
+
+static int
 lookup_network(const char *net)
 {
 	struct fw3_zone *z;
@@ -522,7 +551,6 @@ int main(int argc, char **argv)
 	}
 
 	build_state(false);
-	build_state(true);
 	defs = &cfg_state->defaults;
 
 	if (optind >= argc)
@@ -553,12 +581,18 @@ int main(int argc, char **argv)
 		print_family = family;
 		fw3_pr_debug = true;
 
-		rv = start();
+		if (fw3_lock())
+		{
+			build_state(true);
+			rv = start();
+			fw3_unlock();
+		}
 	}
 	else if (!strcmp(argv[optind], "start"))
 	{
 		if (fw3_lock())
 		{
+			build_state(true);
 			rv = start();
 			fw3_unlock();
 		}
@@ -567,6 +601,7 @@ int main(int argc, char **argv)
 	{
 		if (fw3_lock())
 		{
+			build_state(true);
 			rv = stop(false);
 			fw3_unlock();
 		}
@@ -575,6 +610,7 @@ int main(int argc, char **argv)
 	{
 		if (fw3_lock())
 		{
+			build_state(true);
 			rv = stop(true);
 			fw3_unlock();
 		}
@@ -583,6 +619,7 @@ int main(int argc, char **argv)
 	{
 		if (fw3_lock())
 		{
+			build_state(true);
 			stop(true);
 			rv = start();
 			fw3_unlock();
@@ -592,7 +629,16 @@ int main(int argc, char **argv)
 	{
 		if (fw3_lock())
 		{
+			build_state(true);
 			rv = reload();
+			fw3_unlock();
+		}
+	}
+	else if (!strcmp(argv[optind], "gc"))
+	{
+		if (fw3_lock())
+		{
+			rv = gc();
 			fw3_unlock();
 		}
 	}

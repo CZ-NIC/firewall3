@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -32,6 +32,7 @@
 #include <ifaddrs.h>
 
 #include <libubox/list.h>
+#include <libubox/blob.h>
 #include <uci.h>
 
 
@@ -46,13 +47,23 @@ void warn(const char *format, ...);
 void error(const char *format, ...);
 void info(const char *format, ...);
 
-#define setbit(field, flag) field |= (1 << (flag))
-#define delbit(field, flag) field &= ~(1 << (flag))
-#define hasbit(field, flag) (field & (1 << (flag)))
 
-#define set(field, family, flag) setbit(field[family == FW3_FAMILY_V6], flag)
-#define del(field, family, flag) delbit(field[family == FW3_FAMILY_V6], flag)
-#define has(field, family, flag) hasbit(field[family == FW3_FAMILY_V6], flag)
+#define warn_section(t, r, e, fmt, ...)					\
+	do {									\
+		if (e)								\
+			warn_elem(e, fmt, ##__VA_ARGS__);			\
+		else								\
+			warn("Warning: ubus " t " (%s) " fmt, 			\
+				(r && r->name) ? r->name : "?", ##__VA_ARGS__);	\
+	} while(0)
+
+#define fw3_setbit(field, flag) field |= (1 << (flag))
+#define fw3_delbit(field, flag) field &= ~(1 << (flag))
+#define fw3_hasbit(field, flag) (field & (1 << (flag)))
+
+#define set(field, family, flag) fw3_setbit(field[family == FW3_FAMILY_V6], flag)
+#define del(field, family, flag) fw3_delbit(field[family == FW3_FAMILY_V6], flag)
+#define has(field, family, flag) fw3_hasbit(field[family == FW3_FAMILY_V6], flag)
 
 #define fw3_foreach(p, h)                                                  \
 	for (p = list_empty(h) ? NULL : list_first_entry(h, typeof(*p), list); \
@@ -102,5 +113,7 @@ int fw3_netmask2bitlen(int family, void *mask);
 bool fw3_bitlen2netmask(int family, int bits, void *mask);
 
 void fw3_flush_conntrack(void *zone);
+
+bool fw3_attr_parse_name_type(struct blob_attr *entry, const char **name, const char **type);
 
 #endif

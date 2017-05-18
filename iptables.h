@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,30 +19,16 @@
 #ifndef __FW3_IPTABLES_H
 #define __FW3_IPTABLES_H
 
-#include <libiptc/libiptc.h>
-#include <libiptc/libip6tc.h>
-#include <xtables.h>
-
-#include <dlfcn.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <sys/utsname.h>
-
-#include "options.h"
-
-/* xtables interface */
-#if (XTABLES_VERSION_CODE == 10)
-# include "xtables-10.h"
-#elif (XTABLES_VERSION_CODE == 5)
-# include "xtables-5.h"
-#else
-# error "Unsupported xtables version"
-#endif
-
+#ifndef DISABLE_STATIC_EXTENSIONS
 /* libipt*ext.so interfaces */
 extern void init_extensions(void);
 extern void init_extensions4(void);
 extern void init_extensions6(void);
+#else
+static inline void init_extensions(void) { }
+static inline void init_extensions4(void) { }
+static inline void init_extensions6(void) { }
+#endif
 
 /* Required by certain extensions like SNAT and DNAT */
 extern int kernel_version;
@@ -52,28 +38,9 @@ struct fw3_ipt_handle {
 	enum fw3_family family;
 	enum fw3_table table;
 	void *handle;
-
-	int libc;
-	void **libv;
 };
 
-struct fw3_ipt_rule {
-	struct fw3_ipt_handle *h;
-
-	union {
-		struct ipt_entry e;
-		struct ip6t_entry e6;
-	};
-
-	struct xtables_rule_match *matches;
-	struct xtables_target *target;
-
-	int argc;
-	char **argv;
-
-	uint32_t protocol;
-	bool protocol_loaded;
-};
+struct fw3_ipt_rule;
 
 struct fw3_ipt_handle *fw3_ipt_open(enum fw3_family family,
                                     enum fw3_table table);
@@ -85,9 +52,13 @@ void fw3_ipt_set_policy(struct fw3_ipt_handle *h, const char *chain,
 void fw3_ipt_flush_chain(struct fw3_ipt_handle *h, const char *chain);
 void fw3_ipt_delete_chain(struct fw3_ipt_handle *h, const char *chain);
 
+void fw3_ipt_delete_id_rules(struct fw3_ipt_handle *h, const char *chain);
+
 void fw3_ipt_create_chain(struct fw3_ipt_handle *h, const char *fmt, ...);
 
 void fw3_ipt_flush(struct fw3_ipt_handle *h);
+
+void fw3_ipt_gc(struct fw3_ipt_handle *h);
 
 void fw3_ipt_commit(struct fw3_ipt_handle *h);
 

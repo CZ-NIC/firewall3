@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -463,11 +463,6 @@ write_zone_uci(struct uci_context *ctx, struct fw3_zone *z,
 	uci_set(ctx, &ptr);
 
 	ptr.o      = NULL;
-	ptr.option = "conntrack";
-	ptr.value  = z->conntrack ? "1" : "0";
-	uci_set(ctx, &ptr);
-
-	ptr.o      = NULL;
 	ptr.option = "mtu_fix";
 	ptr.value  = z->mtu_fix ? "1" : "0";
 	uci_set(ctx, &ptr);
@@ -490,18 +485,21 @@ write_zone_uci(struct uci_context *ctx, struct fw3_zone *z,
 
 	fw3_foreach(dev, &z->devices)
 	{
+		char *ep;
+
 		if (!dev)
 			continue;
 
 		p = buf;
+		ep = buf + sizeof(buf);
 
 		if (dev->invert)
-			p += sprintf(p, "!");
+			p += snprintf(p, ep - p, "!");
 
 		if (*dev->network)
-			p += sprintf(p, "%s@%s", dev->name, dev->network);
+			p += snprintf(p, ep - p, "%s@%s", dev->name, dev->network);
 		else
-			p += sprintf(p, "%s", dev->name);
+			p += snprintf(p, ep - p, "%s", dev->name);
 
 		ptr.value = buf;
 		uci_add_list(ctx, &ptr);
@@ -894,4 +892,23 @@ fw3_flush_conntrack(void *state)
 	}
 
 	freeifaddrs(ifaddr);
+}
+
+bool fw3_attr_parse_name_type(struct blob_attr *entry, const char **name, const char **type)
+{
+	struct blob_attr *opt;
+	unsigned orem;
+
+	if (!type || !name)
+		return false;
+
+	*type = NULL;
+
+	blobmsg_for_each_attr(opt, entry, orem)
+		if (!strcmp(blobmsg_name(opt), "type"))
+			*type = blobmsg_get_string(opt);
+		else if (!strcmp(blobmsg_name(opt), "name"))
+			*name = blobmsg_get_string(opt);
+
+	return *type != NULL ? true : false;
 }

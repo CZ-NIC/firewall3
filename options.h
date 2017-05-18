@@ -1,8 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013-2014 Jo-Philipp Wich <jow@openwrt.org>
- *   Copyright (C) 2014 CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+ *   Copyright (C) 2013-2014 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -33,6 +32,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#define _LINUX_IN_H
+#define _LINUX_IN6_H
 #include <netinet/in.h>
 #include <netinet/ether.h>
 
@@ -311,10 +312,10 @@ struct fw3_zone
 	const char *extra_dest;
 
 	bool masq;
+	bool masq_allow_invalid;
 	struct list_head masq_src;
 	struct list_head masq_dest;
 
-	bool conntrack;
 	bool mtu_fix;
 
 	bool log;

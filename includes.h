@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2013 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,14 +24,17 @@
 
 extern const struct fw3_option fw3_include_opts[];
 
-void fw3_load_includes(struct fw3_state *state, struct uci_package *p);
+void fw3_load_includes(struct fw3_state *state, struct uci_package *p, struct blob_attr *a);
 
 void fw3_print_includes(struct fw3_state *state, enum fw3_family family,
                         bool reload);
 
 void fw3_run_includes(struct fw3_state *state, bool reload);
 
-#define fw3_free_include(include) \
-	fw3_free_object(include, fw3_include_opts)
+static inline void fw3_free_include(struct fw3_include *include)
+{
+	list_del(&include->list);
+	fw3_free_object(include, fw3_include_opts);
+}
 
 #endif

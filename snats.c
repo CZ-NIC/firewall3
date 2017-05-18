@@ -1,7 +1,7 @@
 /*
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
- *   Copyright (C) 2014 Jo-Philipp Wich <jow@openwrt.org>
+ *   Copyright (C) 2014 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -72,32 +72,32 @@ check_families(struct uci_element *e, struct fw3_snat *r)
 
 	if (r->_src && r->_src->family && r->_src->family != r->family)
 	{
-		warn_elem(e, "refers to source zone with different family");
+		warn_section("nat", r, e, "refers to source zone with different family");
 		return false;
 	}
 
 	if (r->ipset.ptr && r->ipset.ptr->family &&
 	    r->ipset.ptr->family != r->family)
 	{
-		warn_elem(e, "refers to ipset with different family");
+		warn_section("nat", r, e, "refers to ipset with different family");
 		return false;
 	}
 
 	if (r->ip_src.family && r->ip_src.family != r->family)
 	{
-		warn_elem(e, "uses source ip with different family");
+		warn_section("nat", r, e, "uses source ip with different family");
 		return false;
 	}
 
 	if (r->ip_dest.family && r->ip_dest.family != r->family)
 	{
-		warn_elem(e, "uses destination ip with different family");
+		warn_section("nat", r, e, "uses destination ip with different family");
 		return false;
 	}
 
 	if (r->ip_snat.family && r->ip_snat.family != r->family)
 	{
-		warn_elem(e, "uses snat ip with different family");
+		warn_section("nat", r, e, "uses snat ip with different family");
 		return false;
 	}
 
@@ -119,39 +119,114 @@ alloc_snat(struct fw3_state *state)
 	return snat;
 }
 
+static bool
+check_snat(struct fw3_state *state, struct fw3_snat *snat, struct uci_element *e)
+{
+	if (!snat->enabled)
+		return false;
+
+	if (snat->src.invert)
+	{
+		warn_section("nat", snat, e, "must not have an inverted source");
+		return false;
+	}
+	else if (snat->src.set && !snat->src.any &&
+			!(snat->_src = fw3_lookup_zone(state, snat->src.name)))
+	{
+		warn_section("nat", snat, e, "refers to not existing zone '%s'", snat->src.name);
+		return false;
+	}
+	else if (snat->ipset.set && state->disable_ipsets)
+	{
+		warn_section("nat", snat, e, "skipped due to disabled ipset support");
+		return false;
+	}
+	else if (snat->ipset.set &&
+			!(snat->ipset.ptr = fw3_lookup_ipset(state, snat->ipset.name)))
+	{
+		warn_section("nat", snat, e, "refers to unknown ipset '%s'", snat->ipset.name);
+		return false;
+	}
+
+	if (!check_families(e, snat))
+		return false;
+
+	if (snat->target == FW3_FLAG_UNSPEC)
+	{
+		warn_section("nat", snat, e, "has no target specified, defaulting to MASQUERADE");
+		snat->target = FW3_FLAG_MASQUERADE;
+	}
+	else if (snat->target != FW3_FLAG_ACCEPT && snat->target != FW3_FLAG_SNAT &&
+			snat->target != FW3_FLAG_MASQUERADE)
+	{
+		warn_section("nat", snat, e, "has invalid target specified, defaulting to MASQUERADE");
+		snat->target = FW3_FLAG_MASQUERADE;
+	}
+
+	if (snat->target == FW3_FLAG_SNAT &&
+			!snat->ip_snat.set && !snat->port_snat.set)
+	{
+		warn_section("nat", snat, e, "needs either 'snat_ip' or 'snat_port' for SNAT");
+		return false;
+	}
+	else if (snat->target != FW3_FLAG_SNAT && snat->ip_snat.set)
+	{
+		warn_section("nat", snat, e, "must not use 'snat_ip' for non-SNAT");
+		return false;
+	}
+	else if (snat->target != FW3_FLAG_SNAT && snat->port_snat.set)
+	{
+		warn_section("nat", snat, e, "must not use 'snat_port' for non-SNAT");
+		return false;
+	}
+
+	if (list_empty(&snat->proto))
+	{
+		warn_section("nat", snat, e, "does not specify a protocol, assuming all");
+		fw3_parse_protocol(&snat->proto, "all", true);
+	}
+
+	if (snat->_src)
+		set(snat->_src->flags, FW3_FAMILY_V4, FW3_FLAG_SNAT);
+
+	return true;
+}
+
 
 void
 fw3_load_snats(struct fw3_state *state, struct uci_package *p, struct blob_attr *a)
 {
 	struct uci_section *s;
 	struct uci_element *e;
-	struct fw3_snat *snat, *n;
-	struct blob_attr *rule, *opt;
-	unsigned rem, orem;
+	struct fw3_snat *snat;
+	struct blob_attr *entry;
+	unsigned rem;
 
 	INIT_LIST_HEAD(&state->snats);
 
-	blob_for_each_attr(rule, a, rem) {
+	blob_for_each_attr(entry, a, rem) {
 		const char *type = NULL;
 		const char *name = "ubus rule";
-		blobmsg_for_each_attr(opt, rule, orem)
-			if (!strcmp(blobmsg_name(opt), "type"))
-				type = blobmsg_get_string(opt);
-			else if (!strcmp(blobmsg_name(opt), "name"))
-				name = blobmsg_get_string(opt);
 
-		if (!type || strcmp(type, "nat"))
+		if (!fw3_attr_parse_name_type(entry, &name, &type))
 			continue;
 
-		if (!(snat = alloc_snat(state)))
+		if (strcmp(type, "nat"))
 			continue;
 
-		if (!fw3_parse_blob_options(snat, fw3_snat_opts, rule, name))
+		snat = alloc_snat(state);
+		if (!snat)
+			continue;
+
+		if (!fw3_parse_blob_options(snat, fw3_snat_opts, entry, name))
 		{
-			fprintf(stderr, "%s skipped due to invalid options\n", name);
+			warn_section("nat", snat, NULL, "skipped due to invalid options");
 			fw3_free_snat(snat);
 			continue;
 		}
+
+		if (!check_snat(state, snat, NULL))
+			fw3_free_snat(snat);
 	}
 
 	uci_foreach_element(&p->sections, e)
@@ -161,7 +236,8 @@ fw3_load_snats(struct fw3_state *state, struct uci_package *p, struct blob_attr 
 		if (strcmp(s->type, "nat"))
 			continue;
 
-		if (!(snat = alloc_snat(state)))
+		snat = alloc_snat(state);
+		if (!snat)
 			continue;
 
 		if (!fw3_parse_options(snat, fw3_snat_opts, s))
@@ -170,92 +246,9 @@ fw3_load_snats(struct fw3_state *state, struct uci_package *p, struct blob_attr 
 			fw3_free_snat(snat);
 			continue;
 		}
-	}
 
-	list_for_each_entry_safe(snat, n, &state->snats, list)
-	{
-		if (!snat->enabled)
-		{
+		if (!check_snat(state, snat, e))
 			fw3_free_snat(snat);
-			continue;
-		}
-
-		if (snat->src.invert)
-		{
-			warn_elem(e, "must not have an inverted source");
-			fw3_free_snat(snat);
-			continue;
-		}
-		else if (snat->src.set && !snat->src.any &&
-		         !(snat->_src = fw3_lookup_zone(state, snat->src.name)))
-		{
-			warn_elem(e, "refers to not existing zone '%s'", snat->src.name);
-			fw3_free_snat(snat);
-			continue;
-		}
-		else if (snat->ipset.set && state->disable_ipsets)
-		{
-			warn_elem(e, "skipped due to disabled ipset support");
-			fw3_free_snat(snat);
-			continue;
-		}
-		else if (snat->ipset.set &&
-		         !(snat->ipset.ptr = fw3_lookup_ipset(state, snat->ipset.name)))
-		{
-			warn_elem(e, "refers to unknown ipset '%s'", snat->ipset.name);
-			fw3_free_snat(snat);
-			continue;
-		}
-
-		if (!check_families(e, snat))
-		{
-			fw3_free_snat(snat);
-			continue;
-		}
-
-		if (snat->target == FW3_FLAG_UNSPEC)
-		{
-			warn_elem(e, "has no target specified, defaulting to MASQUERADE");
-			snat->target = FW3_FLAG_MASQUERADE;
-		}
-		else if (snat->target != FW3_FLAG_ACCEPT && snat->target != FW3_FLAG_SNAT &&
-				snat->target != FW3_FLAG_MASQUERADE)
-		{
-			warn_elem(e, "has invalid target specified, defaulting to MASQUERADE");
-			snat->target = FW3_FLAG_MASQUERADE;
-		}
-
-		if (snat->target == FW3_FLAG_SNAT &&
-		    !snat->ip_snat.set && !snat->port_snat.set)
-		{
-			warn_elem(e, "needs either 'snat_ip' or 'snat_port' for SNAT");
-			fw3_free_snat(snat);
-			continue;
-		}
-		else if (snat->target != FW3_FLAG_SNAT && snat->ip_snat.set)
-		{
-			warn_elem(e, "must not use 'snat_ip' for non-SNAT");
-			fw3_free_snat(snat);
-			continue;
-		}
-		else if (snat->target != FW3_FLAG_SNAT && snat->port_snat.set)
-		{
-			warn_elem(e, "must not use 'snat_port' for non-SNAT");
-			fw3_free_snat(snat);
-			continue;
-		}
-
-		if (list_empty(&snat->proto))
-		{
-			warn_elem(e, "does not specify a protocol, assuming all");
-			fw3_parse_protocol(&snat->proto, "all", true);
-		}
-
-		if (snat->_src)
-		{
-			set(snat->_src->flags, FW3_FAMILY_V4, FW3_FLAG_SNAT);
-			snat->_src->conntrack = true;
-		}
 	}
 }
 
@@ -265,7 +258,7 @@ append_chain(struct fw3_ipt_rule *r, struct fw3_snat *snat)
 	if (snat->_src)
 		fw3_ipt_rule_append(r, "zone_%s_postrouting", snat->src.name);
 	else
-		fw3_ipt_rule_append(r, "delegate_postrouting");
+		fw3_ipt_rule_append(r, "POSTROUTING");
 }
 
 static void

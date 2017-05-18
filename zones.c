@@ -2,7 +2,7 @@
  * firewall3 - 3rd OpenWrt UCI firewall implementation
  *
  *   Copyright (C) 2013 Jo-Philipp Wich <jow@openwrt.org>
- *   Copyright (C) 2014 CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+ *   Copyright (C) 2013 Jo-Philipp Wich <jo@mein.io>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -67,6 +67,7 @@ const struct fw3_option fw3_zone_opts[] = {
 	FW3_OPT("output",              target,   zone,     policy_output),
 
 	FW3_OPT("masq",                bool,     zone,     masq),
+	FW3_OPT("masq_allow_invalid",  bool,     zone,     masq_allow_invalid),
 	FW3_LIST("masq_src",           network,  zone,     masq_src),
 	FW3_LIST("masq_dest",          network,  zone,     masq_dest),
 
@@ -74,7 +75,6 @@ const struct fw3_option fw3_zone_opts[] = {
 	FW3_OPT("extra_src",           string,   zone,     extra_src),
 	FW3_OPT("extra_dest",          string,   zone,     extra_dest),
 
-	FW3_OPT("conntrack",           bool,     zone,     conntrack),
 	FW3_OPT("mtu_fix",             bool,     zone,     mtu_fix),
 	FW3_OPT("custom_chains",       bool,     zone,     custom_chains),
 
@@ -181,7 +181,8 @@ fw3_load_zones(struct fw3_state *state, struct uci_package *p)
 		if (!zone)
 			continue;
 
-		fw3_parse_options(zone, fw3_zone_opts, s);
+		if (!fw3_parse_options(zone, fw3_zone_opts, s))
+			warn_elem(e, "has invalid options");
 
 		if (!zone->enabled)
 		{
@@ -226,26 +227,25 @@ fw3_load_zones(struct fw3_state *state, struct uci_package *p)
 
 		if (zone->masq)
 		{
-			setbit(zone->flags[0], FW3_FLAG_SNAT);
-			setbit(zone->flags[1], FW3_FLAG_SNAT);
-			zone->conntrack = true;
+			fw3_setbit(zone->flags[0], FW3_FLAG_SNAT);
+			fw3_setbit(zone->flags[1], FW3_FLAG_SNAT);
 		}
 
 		if (zone->custom_chains)
 		{
-			setbit(zone->flags[0], FW3_FLAG_SNAT);
-			setbit(zone->flags[0], FW3_FLAG_DNAT);
-			setbit(zone->flags[1], FW3_FLAG_SNAT);
-			setbit(zone->flags[1], FW3_FLAG_DNAT);
+			fw3_setbit(zone->flags[0], FW3_FLAG_SNAT);
+			fw3_setbit(zone->flags[0], FW3_FLAG_DNAT);
+			fw3_setbit(zone->flags[1], FW3_FLAG_SNAT);
+			fw3_setbit(zone->flags[1], FW3_FLAG_DNAT);
 		}
 
-		setbit(zone->flags[0], fw3_to_src_target(zone->policy_input));
-		setbit(zone->flags[0], zone->policy_forward);
-		setbit(zone->flags[0], zone->policy_output);
+		fw3_setbit(zone->flags[0], fw3_to_src_target(zone->policy_input));
+		fw3_setbit(zone->flags[0], zone->policy_forward);
+		fw3_setbit(zone->flags[0], zone->policy_output);
 
-		setbit(zone->flags[1], fw3_to_src_target(zone->policy_input));
-		setbit(zone->flags[1], zone->policy_forward);
-		setbit(zone->flags[1], zone->policy_output);
+		fw3_setbit(zone->flags[1], fw3_to_src_target(zone->policy_input));
+		fw3_setbit(zone->flags[1], zone->policy_forward);
+		fw3_setbit(zone->flags[1], zone->policy_output);
 
 		list_add_tail(&zone->list, &state->zones);
 	}
@@ -281,9 +281,6 @@ print_zone_chain(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	if (zone->custom_chains)
 		set(zone->flags, handle->family, FW3_FLAG_CUSTOM_CHAINS);
 
-	if (!zone->conntrack && !state->defaults.drop_invalid)
-		set(zone->flags, handle->family, FW3_FLAG_NOTRACK);
-
 	for (c = zone_chains; c->format; c++)
 	{
 		/* don't touch user chains on selective stop */
@@ -297,7 +294,7 @@ print_zone_chain(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			continue;
 
 		if (c->flag &&
-		    !hasbit(zone->flags[handle->family == FW3_FAMILY_V6], c->flag))
+		    !fw3_hasbit(zone->flags[handle->family == FW3_FAMILY_V6], c->flag))
 			continue;
 
 		fw3_ipt_create_chain(handle, c->format, zone->name);
@@ -358,9 +355,9 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	int i;
 
 	const char *chains[] = {
-		"input",
-		"output",
-		"forward",
+		"input", "INPUT",
+		"output", "OUTPUT",
+		"forward", "FORWARD",
 	};
 
 	if (handle->table == FW3_TABLE_FILTER)
@@ -372,12 +369,28 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 				r = fw3_ipt_rule_create(handle, NULL, dev, NULL, sub, NULL);
 				fw3_ipt_rule_target(r, jump_target(t));
 				fw3_ipt_rule_extra(r, zone->extra_src);
+
+				if (t == FW3_FLAG_ACCEPT && !state->defaults.drop_invalid)
+					fw3_ipt_rule_extra(r,
+					                   "-m conntrack --ctstate NEW,UNTRACKED");
+
 				fw3_ipt_rule_replace(r, "zone_%s_src_%s", zone->name,
 				                     fw3_flag_names[t]);
 			}
 
 			if (has(zone->flags, handle->family, t))
 			{
+				if (t == FW3_FLAG_ACCEPT &&
+				    zone->masq && !zone->masq_allow_invalid)
+				{
+					r = fw3_ipt_rule_create(handle, NULL, NULL, dev, NULL, sub);
+					fw3_ipt_rule_extra(r, "-m conntrack --ctstate INVALID");
+					fw3_ipt_rule_comment(r, "Prevent NAT leakage");
+					fw3_ipt_rule_target(r, fw3_flag_names[FW3_FLAG_DROP]);
+					fw3_ipt_rule_replace(r, "zone_%s_dest_%s", zone->name,
+					                     fw3_flag_names[t]);
+				}
+
 				r = fw3_ipt_rule_create(handle, NULL, NULL, dev, NULL, sub);
 				fw3_ipt_rule_target(r, jump_target(t));
 				fw3_ipt_rule_extra(r, zone->extra_dest);
@@ -386,7 +399,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			}
 		}
 
-		for (i = 0; i < sizeof(chains)/sizeof(chains[0]); i++)
+		for (i = 0; i < sizeof(chains)/sizeof(chains[0]); i += 2)
 		{
 			if (*chains[i] == 'o')
 				r = fw3_ipt_rule_create(handle, NULL, NULL, dev, NULL, sub);
@@ -400,7 +413,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			else
 				fw3_ipt_rule_extra(r, zone->extra_src);
 
-			fw3_ipt_rule_replace(r, "delegate_%s", chains[i]);
+			fw3_ipt_rule_replace(r, chains[i + 1]);
 		}
 	}
 	else if (handle->table == FW3_TABLE_NAT)
@@ -410,7 +423,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			r = fw3_ipt_rule_create(handle, NULL, dev, NULL, sub, NULL);
 			fw3_ipt_rule_target(r, "zone_%s_prerouting", zone->name);
 			fw3_ipt_rule_extra(r, zone->extra_src);
-			fw3_ipt_rule_replace(r, "delegate_prerouting");
+			fw3_ipt_rule_replace(r, "PREROUTING");
 		}
 
 		if (has(zone->flags, handle->family, FW3_FLAG_SNAT))
@@ -418,7 +431,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			r = fw3_ipt_rule_create(handle, NULL, NULL, dev, NULL, sub);
 			fw3_ipt_rule_target(r, "zone_%s_postrouting", zone->name);
 			fw3_ipt_rule_extra(r, zone->extra_dest);
-			fw3_ipt_rule_replace(r, "delegate_postrouting");
+			fw3_ipt_rule_replace(r, "POSTROUTING");
 		}
 	}
 	else if (handle->table == FW3_TABLE_MANGLE)
@@ -443,7 +456,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 				if (zone->log_mss_level) {
 					fw3_ipt_rule_addarg(r, false, "--log-level", zone->log_mss_level);
 				}
-				fw3_ipt_rule_replace(r, "mssfix");
+				fw3_ipt_rule_replace(r, "FORWARD");
 			}
 
 			r = fw3_ipt_rule_create(handle, &tcp, NULL, dev, NULL, sub);
@@ -452,7 +465,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			fw3_ipt_rule_comment(r, "%s (mtu_fix)", zone->name);
 			fw3_ipt_rule_target(r, "TCPMSS");
 			fw3_ipt_rule_addarg(r, false, "--clamp-mss-to-pmtu", NULL);
-			fw3_ipt_rule_replace(r, "mssfix");
+			fw3_ipt_rule_replace(r, "FORWARD");
 		}
 	}
 	else if (handle->table == FW3_TABLE_RAW)
@@ -462,7 +475,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			r = fw3_ipt_rule_create(handle, NULL, dev, NULL, sub, NULL);
 			fw3_ipt_rule_target(r, "zone_%s_notrack", zone->name);
 			fw3_ipt_rule_extra(r, zone->extra_src);
-			fw3_ipt_rule_replace(r, "delegate_notrack");
+			fw3_ipt_rule_replace(r, "PREROUTING");
 		}
 	}
 }
@@ -487,11 +500,29 @@ print_interface_rules(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	}
 }
 
+static struct fw3_address *
+next_addr(struct fw3_address *addr, struct list_head *list,
+                enum fw3_family family, bool invert)
+{
+	struct list_head *p;
+	struct fw3_address *rv;
+
+	for (p = addr ? addr->list.next : list->next; p != list; p = p->next)
+	{
+		rv = list_entry(p, struct fw3_address, list);
+
+		if (fw3_is_family(rv, family) && rv->invert == invert)
+			return rv;
+	}
+
+	return NULL;
+}
+
 static void
 print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
                 bool reload, struct fw3_zone *zone)
 {
-	bool disable_notrack = state->defaults.drop_invalid;
+	bool first_src, first_dest;
 	struct fw3_address *msrc;
 	struct fw3_address *mdest;
 	struct fw3_ipt_rule *r;
@@ -587,31 +618,55 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	case FW3_TABLE_NAT:
 		if (zone->masq && handle->family == FW3_FAMILY_V4)
 		{
-			fw3_foreach(msrc, &zone->masq_src)
-			fw3_foreach(mdest, &zone->masq_dest)
+			/* for any negated masq_src ip, emit -s addr -j RETURN rules */
+			for (msrc = NULL;
+			     (msrc = next_addr(msrc, &zone->masq_src,
+			                       handle->family, true)) != NULL; )
 			{
-				if (!fw3_is_family(msrc, handle->family) ||
-				    !fw3_is_family(mdest, handle->family))
-					continue;
-
+				msrc->invert = false;
 				r = fw3_ipt_rule_new(handle);
-				fw3_ipt_rule_src_dest(r, msrc, mdest);
-				fw3_ipt_rule_target(r, "MASQUERADE");
+				fw3_ipt_rule_src_dest(r, msrc, NULL);
+				fw3_ipt_rule_target(r, "RETURN");
 				fw3_ipt_rule_append(r, "zone_%s_postrouting", zone->name);
+				msrc->invert = true;
+			}
+
+			/* for any negated masq_dest ip, emit -d addr -j RETURN rules */
+			for (mdest = NULL;
+			     (mdest = next_addr(mdest, &zone->masq_dest,
+			                        handle->family, true)) != NULL; )
+			{
+				mdest->invert = false;
+				r = fw3_ipt_rule_new(handle);
+				fw3_ipt_rule_src_dest(r, NULL, mdest);
+				fw3_ipt_rule_target(r, "RETURN");
+				fw3_ipt_rule_append(r, "zone_%s_postrouting", zone->name);
+				mdest->invert = true;
+			}
+
+			/* emit masquerading entries for non-negated addresses
+			   and ensure that both src and dest loops run at least once,
+			   even if there are no relevant addresses */
+			for (first_src = true, msrc = NULL;
+			     (msrc = next_addr(msrc, &zone->masq_src,
+				                   handle->family, false)) || first_src;
+			     first_src = false)
+			{
+				for (first_dest = true, mdest = NULL;
+				     (mdest = next_addr(mdest, &zone->masq_dest,
+					                    handle->family, false)) || first_dest;
+				     first_dest = false)
+				{
+					r = fw3_ipt_rule_new(handle);
+					fw3_ipt_rule_src_dest(r, msrc, mdest);
+					fw3_ipt_rule_target(r, "MASQUERADE");
+					fw3_ipt_rule_append(r, "zone_%s_postrouting", zone->name);
+				}
 			}
 		}
 		break;
 
 	case FW3_TABLE_RAW:
-		if (!zone->conntrack && !disable_notrack)
-		{
-			r = fw3_ipt_rule_new(handle);
-			fw3_ipt_rule_target(r, "CT");
-			fw3_ipt_rule_addarg(r, false, "--notrack", NULL);
-			fw3_ipt_rule_append(r, "zone_%s_notrack", zone->name);
-		}
-		break;
-
 	case FW3_TABLE_MANGLE:
 		break;
 	}
@@ -690,15 +745,15 @@ fw3_hotplug_zones(struct fw3_state *state, bool add)
 
 	list_for_each_entry(z, &state->zones, list)
 	{
-		if (add != hasbit(z->flags[0], FW3_FLAG_HOTPLUG))
+		if (add != fw3_hasbit(z->flags[0], FW3_FLAG_HOTPLUG))
 		{
 			list_for_each_entry(d, &z->devices, list)
 				fw3_hotplug(add, z, d);
 
 			if (add)
-				setbit(z->flags[0], FW3_FLAG_HOTPLUG);
+				fw3_setbit(z->flags[0], FW3_FLAG_HOTPLUG);
 			else
-				delbit(z->flags[0], FW3_FLAG_HOTPLUG);
+				fw3_delbit(z->flags[0], FW3_FLAG_HOTPLUG);
 		}
 	}
 }
