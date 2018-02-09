@@ -1413,7 +1413,7 @@ rule_mask(struct fw3_ipt_rule *r)
 			p += SZ(ip6t_entry_match) + m->match->size;
 		}
 
-		memset(p, 0xFF, SZ(ip6t_entry_target) + (r->target) ? r->target->userspacesize : 0);
+		memset(p, 0xFF, SZ(ip6t_entry_target) + (r->target ? r->target->userspacesize : 0));
 	}
 	else
 #endif
@@ -1437,7 +1437,7 @@ rule_mask(struct fw3_ipt_rule *r)
 			p += SZ(ipt_entry_match) + m->match->size;
 		}
 
-		memset(p, 0xFF, SZ(ipt_entry_target) + (r->target) ? r->target->userspacesize : 0);
+		memset(p, 0xFF, SZ(ipt_entry_target) + (r->target ? r->target->userspacesize : 0));
 	}
 
 	return mask;
