@@ -421,7 +421,7 @@ print_interface_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 	};
 
 #define jump_target(t) \
-	((t == FW3_FLAG_REJECT) ? "reject" : fw3_flag_names[t])
+	((t == FW3_FLAG_DROP) ? "drop" : (t == FW3_FLAG_ACCEPT) ? "accept" : ((t == FW3_FLAG_REJECT) ? "reject" : fw3_flag_names[t]))
 
 	if (handle->table == FW3_TABLE_FILTER)
 	{
@@ -637,13 +637,13 @@ print_zone_rule(struct fw3_ipt_handle *handle, struct fw3_state *state,
 			r = fw3_ipt_rule_new(handle);
 			fw3_ipt_rule_extra(r, "-m conntrack --ctstate DNAT");
 			fw3_ipt_rule_comment(r, "Accept port redirections");
-			fw3_ipt_rule_target(r, fw3_flag_names[FW3_FLAG_ACCEPT]);
+			fw3_ipt_rule_target(r, jump_target(FW3_FLAG_ACCEPT));
 			fw3_ipt_rule_append(r, "zone_%s_input", zone->name);
 
 			r = fw3_ipt_rule_new(handle);
 			fw3_ipt_rule_extra(r, "-m conntrack --ctstate DNAT");
 			fw3_ipt_rule_comment(r, "Accept port forwards");
-			fw3_ipt_rule_target(r, fw3_flag_names[FW3_FLAG_ACCEPT]);
+			fw3_ipt_rule_target(r, jump_target(FW3_FLAG_ACCEPT));
 			fw3_ipt_rule_append(r, "zone_%s_forward", zone->name);
 		}
 

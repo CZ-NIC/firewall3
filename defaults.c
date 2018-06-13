@@ -24,6 +24,8 @@
 
 static const struct fw3_chain_spec default_chains[] = {
 	C(ANY, FILTER, UNSPEC,        "reject"),
+	C(ANY, FILTER, UNSPEC,        "accept"),
+	C(ANY, FILTER, UNSPEC,        "drop"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "input_rule"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "output_rule"),
 	C(ANY, FILTER, CUSTOM_CHAINS, "forwarding_rule"),
@@ -286,6 +288,14 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 		fw3_ipt_rule_addarg(r, false, "--reject-with", "port-unreach");
 		fw3_ipt_rule_append(r, "reject");
 
+		r = fw3_ipt_rule_new(handle);
+		fw3_ipt_rule_target(r, "ACCEPT");
+		fw3_ipt_rule_append(r, "accept");
+
+		r = fw3_ipt_rule_new(handle);
+		fw3_ipt_rule_target(r, "DROP");
+		fw3_ipt_rule_append(r, "drop");
+
 		break;
 
 	case FW3_TABLE_NAT:
@@ -308,48 +318,47 @@ fw3_print_default_head_rules(struct fw3_ipt_handle *handle,
 	}
 }
 
+static inline void prepare_tails(struct fw3_ipt_handle *handle,
+								 const char* base_chain_name, enum fw3_flag target_flag) {
+	char *target_chain_name = NULL;
+
+	switch (target_flag) {
+		case FW3_FLAG_REJECT:
+			target_chain_name = "reject";
+			break;
+		case FW3_FLAG_DROP:
+			target_chain_name = "drop";
+			break;
+		case FW3_FLAG_ACCEPT:
+			target_chain_name = "accept";
+			break;
+		default:
+			return;
+	}
+
+	struct fw3_ipt_rule *r;
+	r = fw3_ipt_rule_new(handle);
+
+	if (!r)
+		return;
+
+	fw3_ipt_rule_target(r, target_chain_name);
+	fw3_ipt_rule_append(r, base_chain_name);
+
+}
+
 void
 fw3_print_default_tail_rules(struct fw3_ipt_handle *handle,
                              struct fw3_state *state, bool reload)
 {
 	struct fw3_defaults *defs = &state->defaults;
-	struct fw3_ipt_rule *r;
 
 	if (handle->table != FW3_TABLE_FILTER)
 		return;
 
-	if (defs->policy_input == FW3_FLAG_REJECT)
-	{
-		r = fw3_ipt_rule_new(handle);
-
-		if (!r)
-			return;
-
-		fw3_ipt_rule_target(r, "reject");
-		fw3_ipt_rule_append(r, "INPUT");
-	}
-
-	if (defs->policy_output == FW3_FLAG_REJECT)
-	{
-		r = fw3_ipt_rule_new(handle);
-
-		if (!r)
-			return;
-
-		fw3_ipt_rule_target(r, "reject");
-		fw3_ipt_rule_append(r, "OUTPUT");
-	}
-
-	if (defs->policy_forward == FW3_FLAG_REJECT)
-	{
-		r = fw3_ipt_rule_new(handle);
-
-		if (!r)
-			return;
-
-		fw3_ipt_rule_target(r, "reject");
-		fw3_ipt_rule_append(r, "FORWARD");
-	}
+	prepare_tails(handle, "INPUT", defs->policy_input);
+	prepare_tails(handle, "OUTPUT", defs->policy_output);
+	prepare_tails(handle, "FORWARD", defs->policy_forward);
 }
 
 static void

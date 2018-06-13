@@ -377,10 +377,14 @@ static void set_target(struct fw3_ipt_rule *r, struct fw3_rule *rule)
 		fw3_ipt_rule_target(r, "zone_%s_dest_%s", rule->dest.name, name);
 	else if (need_src_action_chain(rule))
 		fw3_ipt_rule_target(r, "zone_%s_src_%s", rule->src.name, name);
-	else if (strcmp(name, "REJECT"))
-		fw3_ipt_rule_target(r, name);
-	else
+	else if (!strcmp(name, "REJECT"))
 		fw3_ipt_rule_target(r, "reject");
+	else if (!strcmp(name, "ACCEPT"))
+		fw3_ipt_rule_target(r, "accept");
+	else if (!strcmp(name, "DROP"))
+		fw3_ipt_rule_target(r, "drop");
+	else
+		fw3_ipt_rule_target(r, name);
 }
 
 static void
